@@ -4,7 +4,6 @@ from fastmcp import FastMCP
 from fastmcp.server.dependencies import get_http_headers
 
 from .auth import authenticate_token
-from .models import SearchRequest
 from .api import service
 
 mcp = FastMCP("RAG Gateway")
@@ -19,10 +18,10 @@ def _identity() -> tuple[str, str]:
 
 
 @mcp.tool(name="search_knowledge")
-async def search_knowledge(request: SearchRequest) -> list[dict]:
+async def search_knowledge(query: str, limit: int = 10) -> list[dict]:
     """Search the user's authorized private knowledge base."""
     tenant, user = _identity()
-    return await service.search(request.query, request.limit, tenant, user)
+    return await service.search(query, limit, tenant, user)
 
 
 @mcp.tool(name="list_sources")

@@ -42,7 +42,7 @@ async def test_internal_and_state_changing_routes_are_not_mcp_tools():
 
 def test_llm_routes_are_explicit_and_reviewable():
     llm_routes = {
-        (route.path, route.methods, route.operation_id)
+        (route.path, frozenset(route.methods), route.operation_id)
         for route in app.routes
         if "llm" in getattr(route, "tags", [])
     }

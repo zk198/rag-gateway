@@ -1,6 +1,8 @@
 import pytest
+import httpx2
 from fastmcp import Client
 from fastmcp.client.auth import BearerAuth
+from fastmcp.client.transports import StreamableHttpTransport
 
 from rag_gateway import api
 from rag_gateway.api import app
@@ -58,7 +60,7 @@ def test_llm_routes_are_explicit_and_reviewable():
 
 
 @pytest.mark.anyio
-async def test_generated_mcp_tool_forwards_bearer_authorization_to_fastapi(
+async def test_generated_mcp_http_tool_forwards_bearer_authorization_to_fastapi(
     monkeypatch,
 ):
     observed = {}
@@ -74,7 +76,22 @@ async def test_generated_mcp_tool_forwards_bearer_authorization_to_fastapi(
     monkeypatch.setattr(api, "authenticate", fake_authenticate)
     monkeypatch.setattr(api.service, "search", fake_search)
 
-    async with Client(mcp, auth=BearerAuth("secret")) as client:
+    mcp_app = mcp.http_app(transport="streamable-http", stateless_http=True)
+
+    def httpx_client_factory(**kwargs):
+        return httpx2.AsyncClient(
+            transport=httpx2.ASGITransport(app=mcp_app),
+            base_url="http://testserver",
+            **kwargs,
+        )
+
+    transport = StreamableHttpTransport(
+        "http://testserver/mcp",
+        auth=BearerAuth("secret"),
+        httpx_client_factory=httpx_client_factory,
+    )
+
+    async with Client(transport) as client:
         result = await client.call_tool(
             "search_knowledge",
             {"query": "hello", "limit": 1},

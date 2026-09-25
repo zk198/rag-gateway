@@ -1,18 +1,49 @@
+from __future__ import annotations
+
 from fastmcp import FastMCP
-from fastmcp.server.providers.openapi import MCPType, RouteMap
+from fastmcp.server.dependencies import get_http_headers
 
-from .api import app
+from .auth import authenticate_token
+from .models import SearchRequest
+from .api import service
 
-# Only routes explicitly tagged "llm" become MCP tools.
-# The catch-all EXCLUDE prevents future REST endpoints from becoming tools.
-mcp = FastMCP.from_fastapi(
-    app=app,
-    name="RAG Gateway",
-    route_maps=[
-        RouteMap(tags={"llm"}, mcp_type=MCPType.TOOL),
-        RouteMap(mcp_type=MCPType.EXCLUDE),
-    ],
-)
+mcp = FastMCP("RAG Gateway")
+
+
+def _identity() -> tuple[str, str]:
+    headers = get_http_headers(include={"authorization"})
+    header = headers.get("authorization", "")
+    if not header.startswith("Bearer ") or not header[7:].strip():
+        raise PermissionError("Bearer token required")
+    return authenticate_token(header[7:].strip())
+
+
+@mcp.tool(name="search_knowledge")
+async def search_knowledge(request: SearchRequest) -> list[dict]:
+    """Search the user's authorized private knowledge base."""
+    tenant, user = _identity()
+    return await service.search(request.query, request.limit, tenant, user)
+
+
+@mcp.tool(name="list_sources")
+async def list_sources() -> list[dict]:
+    """List knowledge sources available to the authenticated user."""
+    tenant, user = _identity()
+    return await service.get_sources(tenant, user)
+
+
+@mcp.tool(name="get_message")
+async def get_message(message_id: str) -> dict:
+    """Get an authorized email/message by ID."""
+    tenant, user = _identity()
+    return await service.get_message(message_id, tenant, user)
+
+
+@mcp.tool(name="get_document")
+async def get_document(document_id: str) -> dict:
+    """Get an authorized document by ID."""
+    tenant, user = _identity()
+    return await service.get_document(document_id, tenant, user)
 
 
 if __name__ == "__main__":

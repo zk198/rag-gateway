@@ -117,3 +117,19 @@ def test_user_read_routes_authenticate(monkeypatch):
     monkeypatch.setattr(api, "authenticate", reject)
     client = TestClient(api.app)
     assert client.get("/sources").status_code == 401
+
+
+def test_cors_allows_configured_local_ui():
+    from fastapi.testclient import TestClient
+    from rag_gateway import api
+    client = TestClient(api.app)
+    response = client.options(
+        "/search",
+        headers={
+            "Origin": "http://localhost:3000",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "authorization,content-type",
+        },
+    )
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:3000"

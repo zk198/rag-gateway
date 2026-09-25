@@ -4,11 +4,14 @@ import os
 
 import httpx
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 
 from .auth import authenticate
 
 app = FastAPI(title="RAG Gateway")
+UI_ORIGINS = [origin.strip() for origin in os.getenv("RAG_UI_ORIGINS", "http://localhost:3000").split(",") if origin.strip()]
+app.add_middleware(CORSMiddleware, allow_origins=UI_ORIGINS, allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 INGEST = os.getenv("RAG_INGESTION_URL", "http://pst-agent:8000")
 RETRIEVAL = os.getenv("RAG_RETRIEVAL_URL", "http://rag-retrieval:8100")
 TIMEOUT = float(os.getenv("RAG_DOWNSTREAM_TIMEOUT_SECONDS", "60"))

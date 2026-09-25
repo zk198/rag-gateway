@@ -7,12 +7,7 @@ from fastapi import HTTPException, Request
 from jwt import PyJWKClient
 
 
-def authenticate(request: Request) -> tuple[str, str]:
-    header = request.headers.get("Authorization", "")
-    if not header.startswith("Bearer ") or not header[7:].strip():
-        raise HTTPException(401, "Bearer token required")
-
-    token = header[7:].strip()
+def authenticate_token(token: str) -> tuple[str, str]:
     secret = os.getenv("RAG_JWT_SECRET")
     jwks = os.getenv("RAG_JWKS_URL")
     algorithms = [
@@ -31,28 +26,14 @@ def authenticate(request: Request) -> tuple[str, str]:
     try:
         if secret:
             claims = jwt.decode(
-                token,
-                secret,
-                algorithms=algorithms,
-                issuer=issuer,
-                audience=audience,
-                options={
-                    "verify_iss": issuer is not None,
-                    "verify_aud": audience is not None,
-                },
+                token, secret, algorithms=algorithms, issuer=issuer, audience=audience,
+                options={"verify_iss": issuer is not None, "verify_aud": audience is not None},
             )
         elif jwks:
             key = PyJWKClient(jwks).get_signing_key_from_jwt(token).key
             claims = jwt.decode(
-                token,
-                key,
-                algorithms=algorithms,
-                issuer=issuer,
-                audience=audience,
-                options={
-                    "verify_iss": issuer is not None,
-                    "verify_aud": audience is not None,
-                },
+                token, key, algorithms=algorithms, issuer=issuer, audience=audience,
+                options={"verify_iss": issuer is not None, "verify_aud": audience is not None},
             )
         else:
             raise HTTPException(500, "JWT verifier is not configured")
@@ -64,3 +45,10 @@ def authenticate(request: Request) -> tuple[str, str]:
     if not tenant or not user:
         raise HTTPException(403, "token must contain tenant_id and sub")
     return str(tenant), str(user)
+
+
+def authenticate(request: Request) -> tuple[str, str]:
+    header = request.headers.get("Authorization", "")
+    if not header.startswith("Bearer ") or not header[7:].strip():
+        raise HTTPException(401, "Bearer token required")
+    return authenticate_token(header[7:].strip())

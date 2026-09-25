@@ -48,8 +48,8 @@ def test_llm_routes_are_explicit_and_reviewable():
     }
 
     assert llm_routes == {
-        ("/search", {"POST"}, "search_knowledge"),
-        ("/sources", {"GET"}, "list_sources"),
-        ("/messages/{message_id}", {"GET"}, "get_message"),
-        ("/documents/{document_id}", {"GET"}, "get_document"),
+        ("/search", frozenset({"POST"}), "search_knowledge"),
+        ("/sources", frozenset({"GET"}), "list_sources"),
+        ("/messages/{message_id}", frozenset({"GET"}), "get_message"),
+        ("/documents/{document_id}", frozenset({"GET"}), "get_document"),
     }

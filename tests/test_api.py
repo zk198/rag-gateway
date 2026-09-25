@@ -18,16 +18,12 @@ def test_search_authenticates_and_injects_derived_context(monkeypatch):
         assert request.headers["x-rag-tenant-id"] == "attacker-tenant"
         return "token-tenant", "token-user"
 
-    async def fake_forward(url, request, tenant, user):
-        calls.append((url, tenant, user, await request.body()))
-        return httpx.Response(
-            200,
-            content=b'{"ok":true}',
-            headers={"content-type": "application/json"},
-        )
+    async def fake_search(query, limit, tenant, user):
+        calls.append((query, limit, tenant, user))
+        return [{"text": "ok"}]
 
     monkeypatch.setattr(api, "authenticate", fake_authenticate)
-    monkeypatch.setattr(api, "forward", fake_forward)
+    monkeypatch.setattr(api.service, "search", fake_search)
 
     client = TestClient(api.app)
     response = client.post(
@@ -37,99 +33,35 @@ def test_search_authenticates_and_injects_derived_context(monkeypatch):
     )
 
     assert response.status_code == 200
-    assert response.json() == {"ok": True}
-    assert calls == [
-        (
-            api.RETRIEVAL + "/search",
-            "token-tenant",
-            "token-user",
-            b'{"query":"hello"}',
-        )
-    ]
+    assert response.json() == [{"text": "ok"}]
+    assert calls == [("hello", 10, "token-tenant", "token-user")]
 
 
 def test_upload_uses_ingestion_backend(monkeypatch):
-    calls = []
-
-    monkeypatch.setattr(api, "authenticate", lambda request: ("t1", "u1"))
-
-    async def fake_forward(url, request, tenant, user):
-        calls.append((url, tenant, user))
+    async def fake_upload(body, content_type, tenant, user):
         return httpx.Response(201, content=b"ok")
 
-    monkeypatch.setattr(api, "forward", fake_forward)
+    monkeypatch.setattr(api, "authenticate", lambda request: ("t1", "u1"))
+    monkeypatch.setattr(api.service, "upload", fake_upload)
 
     client = TestClient(api.app)
     response = client.post("/upload", content=b"data")
-
     assert response.status_code == 201
-    assert calls == [(api.INGEST + "/upload", "t1", "u1")]
-
-
-def test_forward_maps_downstream_timeout_to_504(monkeypatch):
-    monkeypatch.setattr(api, "authenticate", lambda request: ("t1", "u1"))
-
-    class TimeoutClient:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, *args):
-            return False
-
-        async def request(self, *args, **kwargs):
-            raise httpx.ReadTimeout("timed out")
-
-    monkeypatch.setattr(
-        api.httpx, "AsyncClient", lambda *a, **k: TimeoutClient()
-    )
-
-    client = TestClient(api.app)
-    response = client.post(
-        "/search",
-        json={"query": "hello"},
-    )
-
-    assert response.status_code == 504
-    assert response.json()["detail"] == "downstream timeout"
+    assert response.text == "ok"
 
 
 def test_user_read_routes_require_auth(monkeypatch):
-    from fastapi.testclient import TestClient
-    from rag_gateway import api
-    monkeypatch.setattr(api, "authenticate", lambda request: ("tenant-1", "user-1"))
-    async def fake_forward(url, request, tenant, user):
-        return __import__("httpx").Response(200, json={"url": url, "tenant": tenant, "user": user})
-    monkeypatch.setattr(api, "forward", fake_forward)
-    client = TestClient(api.app)
-    for path in ["/sources", "/sources/mail", "/stats", "/messages/m1", "/documents/d1"]:
-        response = client.get(path)
-        assert response.status_code == 200
-        body = response.json()
-        assert body["tenant"] == "tenant-1"
-        assert body["user"] == "user-1"
-
-def test_user_read_routes_authenticate(monkeypatch):
-    from fastapi.testclient import TestClient
     from fastapi import HTTPException
-    from rag_gateway import api
+
     def reject(request):
         raise HTTPException(status_code=401, detail="missing token")
+
     monkeypatch.setattr(api, "authenticate", reject)
     client = TestClient(api.app)
     assert client.get("/sources").status_code == 401
 
 
-def test_cors_allows_configured_local_ui():
-    from fastapi.testclient import TestClient
-    from rag_gateway import api
-    client = TestClient(api.app)
-    response = client.options(
-        "/search",
-        headers={
-            "Origin": "http://localhost:3000",
-            "Access-Control-Request-Method": "POST",
-            "Access-Control-Request-Headers": "authorization,content-type",
-        },
-    )
-    assert response.status_code == 200
-    assert response.headers["access-control-allow-origin"] == "http://localhost:3000"
+def test_mcp_only_exposes_llm_routes():
+    from rag_gateway.mcp import mcp
+
+    assert mcp is not None

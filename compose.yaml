@@ -1,0 +1,9 @@
+services:
+  rag-gateway:
+    build: .
+    environment:
+      RAG_INGESTION_URL: http://rag-ingestion:8000
+      RAG_RETRIEVAL_URL: http://rag-retrieval:8100
+      RAG_JWT_SECRET: set-in-environment
+    ports:
+      - "8200:8200"

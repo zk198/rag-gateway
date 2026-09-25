@@ -2,8 +2,8 @@ services:
   rag-gateway:
     build: .
     environment:
-      RAG_INGESTION_URL: http://rag-ingestion:8000
+      RAG_INGESTION_URL: http://pst-agent:8000
       RAG_RETRIEVAL_URL: http://rag-retrieval:8100
-      RAG_JWT_SECRET: set-in-environment
+      RAG_JWT_SECRET: ${RAG_JWT_SECRET:?set RAG_JWT_SECRET}
     ports:
       - "8200:8200"

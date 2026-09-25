@@ -9,7 +9,7 @@ from rag_gateway import mcp
 async def test_mcp_search_requires_bearer(monkeypatch):
     monkeypatch.setattr(mcp, "get_http_headers", lambda **_: {})
     with pytest.raises(PermissionError, match="Bearer"):
-        await mcp.search_knowledge({"query": "hello", "limit": 5})
+        await mcp.search_knowledge("hello", 5)
 
 
 @pytest.mark.asyncio

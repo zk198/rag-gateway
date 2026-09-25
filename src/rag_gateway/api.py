@@ -56,6 +56,36 @@ async def search(request: Request):
     )
 
 
+@app.get("/sources")
+async def sources(request: Request):
+    tenant, user = authenticate(request)
+    return passthrough(await forward(INGEST + "/sources", request, tenant, user))
+
+
+@app.get("/sources/{source_name}")
+async def source(request: Request, source_name: str):
+    tenant, user = authenticate(request)
+    return passthrough(await forward(INGEST + "/sources/" + source_name, request, tenant, user))
+
+
+@app.get("/stats")
+async def stats(request: Request):
+    tenant, user = authenticate(request)
+    return passthrough(await forward(INGEST + "/stats", request, tenant, user))
+
+
+@app.get("/messages/{message_id}")
+async def message(request: Request, message_id: str):
+    tenant, user = authenticate(request)
+    return passthrough(await forward(INGEST + "/messages/" + message_id, request, tenant, user))
+
+
+@app.get("/documents/{document_id}")
+async def document(request: Request, document_id: str):
+    tenant, user = authenticate(request)
+    return passthrough(await forward(INGEST + "/documents/" + document_id, request, tenant, user))
+
+
 @app.post("/ingest")
 async def ingest(request: Request):
     tenant, user = authenticate(request)

@@ -1,5 +1,6 @@
 import pytest
 from fastmcp import Client
+from fastmcp.client.auth import BearerAuth
 
 from rag_gateway import api
 from rag_gateway.api import app
@@ -73,7 +74,7 @@ async def test_generated_mcp_tool_forwards_bearer_authorization_to_fastapi(
     monkeypatch.setattr(api, "authenticate", fake_authenticate)
     monkeypatch.setattr(api.service, "search", fake_search)
 
-    async with Client(mcp) as client:
+    async with Client(mcp, auth=BearerAuth("secret")) as client:
         result = await client.call_tool(
             "search_knowledge",
             {"query": "hello", "limit": 1},
@@ -81,6 +82,6 @@ async def test_generated_mcp_tool_forwards_bearer_authorization_to_fastapi(
 
     assert result.data == [{"text": "ok"}]
     assert observed == {
-        "authorization": None,
+        "authorization": "Bearer secret",
         "search": ("hello", 1, "token-tenant", "token-user"),
     }

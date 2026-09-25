@@ -91,3 +91,29 @@ def test_forward_maps_downstream_timeout_to_504(monkeypatch):
 
     assert response.status_code == 504
     assert response.json()["detail"] == "downstream timeout"
+
+
+def test_user_read_routes_require_auth(monkeypatch):
+    from fastapi.testclient import TestClient
+    from rag_gateway import api
+    monkeypatch.setattr(api, "authenticate", lambda request: ("tenant-1", "user-1"))
+    async def fake_forward(url, request, tenant, user):
+        return __import__("httpx").Response(200, json={"url": url, "tenant": tenant, "user": user})
+    monkeypatch.setattr(api, "forward", fake_forward)
+    client = TestClient(api.app)
+    for path in ["/sources", "/sources/mail", "/stats", "/messages/m1", "/documents/d1"]:
+        response = client.get(path)
+        assert response.status_code == 200
+        body = response.json()
+        assert body["tenant"] == "tenant-1"
+        assert body["user"] == "user-1"
+
+def test_user_read_routes_authenticate(monkeypatch):
+    from fastapi.testclient import TestClient
+    from fastapi import HTTPException
+    from rag_gateway import api
+    def reject(request):
+        raise HTTPException(status_code=401, detail="missing token")
+    monkeypatch.setattr(api, "authenticate", reject)
+    client = TestClient(api.app)
+    assert client.get("/sources").status_code == 401

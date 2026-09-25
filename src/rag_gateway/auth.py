@@ -11,7 +11,7 @@ def authenticate(request: Request) -> tuple[str, str | None]:
     token=header[7:]
     secret=os.getenv("RAG_JWT_SECRET")
     jwks=os.getenv("RAG_JWKS_URL")
-    algorithms=os.getenv("RAG_JWT_ALGORITHMS","RS256").split(",")
+    algorithms=os.getenv("RAG_JWT_ALGORITHMS", "HS256" if secret else "RS256").split(",")
     try:
         if secret:
             claims=jwt.decode(token, secret, algorithms=algorithms, options={"verify_aud": False})

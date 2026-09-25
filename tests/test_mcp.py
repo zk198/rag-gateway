@@ -1,6 +1,7 @@
 import pytest
 from fastmcp import Client
 
+from rag_gateway import api
 from rag_gateway.api import app
 from rag_gateway.mcp import mcp
 
@@ -52,4 +53,34 @@ def test_llm_routes_are_explicit_and_reviewable():
         ("/sources", frozenset({"GET"}), "list_sources"),
         ("/messages/{message_id}", frozenset({"GET"}), "get_message"),
         ("/documents/{document_id}", frozenset({"GET"}), "get_document"),
+    }
+
+
+@pytest.mark.anyio
+async def test_generated_mcp_tool_forwards_bearer_authorization_to_fastapi(
+    monkeypatch,
+):
+    observed = {}
+
+    def fake_authenticate(request):
+        observed["authorization"] = request.headers.get("authorization")
+        return "token-tenant", "token-user"
+
+    async def fake_search(query, limit, tenant, user):
+        observed["search"] = (query, limit, tenant, user)
+        return [{"text": "ok"}]
+
+    monkeypatch.setattr(api, "authenticate", fake_authenticate)
+    monkeypatch.setattr(api.service, "search", fake_search)
+
+    async with Client(mcp) as client:
+        result = await client.call_tool(
+            "search_knowledge",
+            {"query": "hello", "limit": 1},
+        )
+
+    assert result.data == [{"text": "ok"}]
+    assert observed == {
+        "authorization": None,
+        "search": ("hello", 1, "token-tenant", "token-user"),
     }

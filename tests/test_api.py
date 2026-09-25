@@ -67,6 +67,8 @@ def test_upload_uses_ingestion_backend(monkeypatch):
 
 
 def test_forward_maps_downstream_timeout_to_504(monkeypatch):
+    monkeypatch.setattr(api, "authenticate", lambda request: ("t1", "u1"))
+
     class TimeoutClient:
         async def __aenter__(self):
             return self
@@ -77,13 +79,15 @@ def test_forward_maps_downstream_timeout_to_504(monkeypatch):
         async def request(self, *args, **kwargs):
             raise httpx.ReadTimeout("timed out")
 
-    monkeypatch.setattr(api.httpx, "AsyncClient", lambda *a, **k: TimeoutClient())
+    monkeypatch.setattr(
+        api.httpx, "AsyncClient", lambda *a, **k: TimeoutClient()
+    )
 
     client = TestClient(api.app)
     response = client.post(
         "/search",
         json={"query": "hello"},
-        headers={"Authorization": "Bearer token"},
     )
 
-    assert response.status_code == 401
+    assert response.status_code == 504
+    assert response.json()["detail"] == "downstream timeout"

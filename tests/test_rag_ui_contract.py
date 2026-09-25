@@ -5,10 +5,22 @@ from rag_gateway import api
 
 def test_rag_ui_read_contract(monkeypatch):
     monkeypatch.setattr(api, "authenticate", lambda request: ("t1", "u1"))
-    monkeypatch.setattr(api.service, "get_sources", lambda *args: [{"source_name": "mail"}])
-    monkeypatch.setattr(api.service, "get_stats", lambda *args: {"documents": 3})
-    monkeypatch.setattr(api.service, "get_message", lambda *args: {"id": "m1", "subject": "Hello"})
-    monkeypatch.setattr(api.service, "get_document", lambda *args: {"id": "d1", "title": "Doc"})
+    async def sources(*args):
+        return [{"source_name": "mail"}]
+
+    async def stats(*args):
+        return {"documents": 3}
+
+    async def message(*args):
+        return {"id": "m1", "subject": "Hello"}
+
+    async def document(*args):
+        return {"id": "d1", "title": "Doc"}
+
+    monkeypatch.setattr(api.service, "get_sources", sources)
+    monkeypatch.setattr(api.service, "get_stats", stats)
+    monkeypatch.setattr(api.service, "get_message", message)
+    monkeypatch.setattr(api.service, "get_document", document)
 
     client = TestClient(api.app)
 

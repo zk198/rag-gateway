@@ -6,4 +6,4 @@ services:
       RAG_RETRIEVAL_URL: http://rag-retrieval:8100
       RAG_JWT_SECRET: ${RAG_JWT_SECRET:?set RAG_JWT_SECRET}
     ports:
-      - "8200:8200"
+      - "8000:8200"

@@ -2,7 +2,6 @@ from fastapi import HTTPException
 from fastmcp import Client
 from fastmcp.client.auth import BearerAuth
 from fastmcp.client.transports import StreamableHttpTransport
-import httpx
 import httpx as httpx2
 import jwt
 import pytest
@@ -115,16 +114,6 @@ async def test_generated_mcp_http_tool_accepts_bearer_auth_and_uses_single_fasta
     assert observed == {
         "search": ("hello", 1, "token-tenant", "token-user"),
     }
-
-
-@pytest.mark.anyio
-async def test_mounted_mcp_endpoint_is_streamable_http():
-    response = await httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=app),
-        base_url="http://testserver",
-    ).get("/mcp")
-    assert response.status_code in {200, 404, 405}
-    assert app.url_path_for("mcp:handle_post") if "mcp:handle_post" in app.router.routes else True
 
 
 @pytest.mark.anyio

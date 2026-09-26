@@ -2,6 +2,7 @@ import pytest
 import httpx2
 import jwt
 from fastmcp import Client
+from fastmcp.client.auth import BearerAuth
 from fastmcp.client.transports import StreamableHttpTransport
 
 from rag_gateway import api
@@ -60,7 +61,7 @@ def test_llm_routes_are_explicit_and_reviewable():
 
 
 @pytest.mark.anyio
-async def test_generated_mcp_http_tool_forwards_bearer_context_to_fastapi(
+async def test_generated_mcp_http_tool_accepts_bearer_auth_and_authenticates_fastapi(
     monkeypatch,
 ):
     secret = "test-secret-key-with-at-least-32-bytes!!"
@@ -86,12 +87,12 @@ async def test_generated_mcp_http_tool_forwards_bearer_context_to_fastapi(
         return httpx2.AsyncClient(
             transport=httpx2.ASGITransport(app=mcp_app),
             base_url="http://testserver",
-            headers={"Authorization": f"Bearer {token}"},
             **kwargs,
         )
 
     transport = StreamableHttpTransport(
         "http://testserver/mcp",
+        auth=BearerAuth(token),
         httpx_client_factory=httpx_client_factory,
     )
 

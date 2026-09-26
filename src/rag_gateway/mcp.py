@@ -29,13 +29,13 @@ mcp = FastMCP.from_fastapi(
 )
 mcp.add_middleware(AuthorizationContextMiddleware())
 
-# Serve the REST gateway and its MCP projection from the same HTTP service.
-# The transport is explicitly Streamable HTTP and stateless for horizontal
-# scalability; FastMCP 4 handles protocol negotiation for clients.
-app.mount(
-    "/mcp",
-    mcp.http_app(transport="streamable-http", stateless_http=True),
-)
+# Mount the Streamable HTTP MCP app at /mcp. Because the parent application
+# supplies the /mcp prefix, the nested FastMCP app must use path="/".
+# Its lifespan is also attached to the parent so the MCP session manager is
+# initialized when the combined FastAPI application starts.
+mcp_app = mcp.http_app(path="/", transport="streamable-http", stateless_http=True)
+app.router.lifespan_context = mcp_app.lifespan
+app.mount("/mcp", mcp_app)
 
 
 if __name__ == "__main__":

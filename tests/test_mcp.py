@@ -9,7 +9,7 @@ from starlette.requests import Request
 from rag_gateway import api
 from rag_gateway.api import app
 from rag_gateway.auth import authenticate
-from rag_gateway.mcp import mcp
+from rag_gateway.mcp import mcp, mcp_app
 
 
 def request_with_token(token: str):
@@ -221,10 +221,7 @@ def test_mcp_entrypoint_is_http_and_generated_tools_use_streamable_http():
 def test_mounted_mcp_path_exists():
     routes = {route.path for route in app.routes}
     assert any(path.startswith("/mcp") for path in routes)
-
-
-def test_mounted_mcp_path_exists():
-    assert any(route.path.startswith("/mcp") for route in app.routes)
+    assert app.router.lifespan_context is mcp_app.lifespan
 
 
 def test_auth_unit_error_contract(monkeypatch):

@@ -95,7 +95,7 @@ async def test_generated_mcp_http_tool_accepts_bearer_auth_and_uses_single_fasta
         return httpx2.AsyncClient(
             transport=httpx2.ASGITransport(app=mcp_app),
             base_url="http://testserver",
-            headers={"Authorization": f"Bearer {token}"},
+            headers={**kwargs.pop("headers", {}), "Authorization": f"Bearer {token}"},
             **kwargs,
         )
 
@@ -192,7 +192,6 @@ async def test_mcp_invalid_jwt_or_missing_identity_claims_never_reach_downstream
 
     transport = StreamableHttpTransport(
         "http://testserver/mcp",
-        auth=BearerAuth(token),
         httpx_client_factory=httpx_client_factory,
     )
 

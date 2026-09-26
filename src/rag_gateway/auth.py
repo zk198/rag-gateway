@@ -1,14 +1,27 @@
 from __future__ import annotations
 
 import os
+from contextvars import ContextVar
 
 import jwt
 from fastapi import HTTPException, Request
 from jwt import PyJWKClient
 
+_mcp_authorization: ContextVar[str | None] = ContextVar(
+    "rag_gateway_mcp_authorization", default=None
+)
+
+
+def set_mcp_authorization(header: str | None):
+    return _mcp_authorization.set(header)
+
+
+def reset_mcp_authorization(token) -> None:
+    _mcp_authorization.reset(token)
+
 
 def authenticate(request: Request) -> tuple[str, str]:
-    header = request.headers.get("Authorization", "")
+    header = request.headers.get("Authorization") or _mcp_authorization.get() or ""
     if not header.startswith("Bearer ") or not header[7:].strip():
         raise HTTPException(401, "Bearer token required")
 

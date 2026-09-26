@@ -91,11 +91,12 @@ async def test_generated_mcp_http_tool_forwards_bearer_authorization_to_fastapi(
         httpx_client_factory=httpx_client_factory,
     )
 
-    async with Client(transport) as client:
-        result = await client.call_tool(
-            "search_knowledge",
-            {"query": "hello", "limit": 1},
-        )
+    async with mcp_app.lifespan(mcp_app):
+        async with Client(transport) as client:
+            result = await client.call_tool(
+                "search_knowledge",
+                {"query": "hello", "limit": 1},
+            )
 
     assert result.data == [{"text": "ok"}]
     assert observed == {

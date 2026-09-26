@@ -1,7 +1,6 @@
 import pytest
 import httpx2
 from fastmcp import Client
-from fastmcp.client.auth import BearerAuth
 from fastmcp.client.transports import StreamableHttpTransport
 
 from rag_gateway import api
@@ -87,7 +86,7 @@ async def test_generated_mcp_http_tool_forwards_bearer_authorization_to_fastapi(
 
     transport = StreamableHttpTransport(
         "http://testserver/mcp",
-        auth=BearerAuth("secret"),
+        headers={"Authorization": "Bearer secret"},
         httpx_client_factory=httpx_client_factory,
     )
 

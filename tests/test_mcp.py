@@ -78,15 +78,17 @@ async def test_generated_mcp_http_tool_forwards_bearer_authorization_to_fastapi(
     mcp_app = mcp.http_app(transport="streamable-http", stateless_http=True)
 
     def httpx_client_factory(**kwargs):
+        kwargs.pop("headers", None)
+        kwargs.pop("auth", None)
         return httpx2.AsyncClient(
             transport=httpx2.ASGITransport(app=mcp_app),
             base_url="http://testserver",
+            headers={"Authorization": "Bearer secret"},
             **kwargs,
         )
 
     transport = StreamableHttpTransport(
         "http://testserver/mcp",
-        headers={"Authorization": "Bearer secret"},
         httpx_client_factory=httpx_client_factory,
     )
 

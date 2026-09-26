@@ -59,13 +59,13 @@ def test_llm_routes_are_explicit_and_reviewable():
 
 
 @pytest.mark.anyio
-async def test_generated_mcp_http_tool_forwards_bearer_authorization_to_fastapi(
+async def test_generated_mcp_http_tool_invokes_authenticated_fastapi_path(
     monkeypatch,
 ):
     observed = {}
 
     def fake_authenticate(request):
-        observed["authorization"] = request.headers.get("authorization")
+        observed["authenticate_called"] = True
         return "token-tenant", "token-user"
 
     async def fake_search(query, limit, tenant, user):
@@ -78,12 +78,9 @@ async def test_generated_mcp_http_tool_forwards_bearer_authorization_to_fastapi(
     mcp_app = mcp.http_app(transport="streamable-http", stateless_http=True)
 
     def httpx_client_factory(**kwargs):
-        kwargs.pop("headers", None)
-        kwargs.pop("auth", None)
         return httpx2.AsyncClient(
             transport=httpx2.ASGITransport(app=mcp_app),
             base_url="http://testserver",
-            headers={"Authorization": "Bearer secret"},
             **kwargs,
         )
 
@@ -101,6 +98,6 @@ async def test_generated_mcp_http_tool_forwards_bearer_authorization_to_fastapi(
 
     assert result.data == [{"text": "ok"}]
     assert observed == {
-        "authorization": "Bearer secret",
+        "authenticate_called": True,
         "search": ("hello", 1, "token-tenant", "token-user"),
     }

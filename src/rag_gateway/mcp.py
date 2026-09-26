@@ -8,13 +8,7 @@ from .auth import reset_mcp_authorization, set_mcp_authorization
 
 
 class AuthorizationContextMiddleware(Middleware):
-    """Bridge the inbound MCP bearer token to generated FastAPI tools.
-
-    FastMCP intentionally excludes Authorization from headers forwarded by its
-    OpenAPI provider. The generated tool still executes the FastAPI route in
-    process, so keep the existing JWT verifier as the single authentication
-    implementation and expose only the request-scoped bearer header to it.
-    """
+    """Bridge the inbound MCP bearer token to generated FastAPI tools."""
 
     async def on_request(self, context: MiddlewareContext, call_next):
         headers = get_http_headers(include={"authorization"})
@@ -25,8 +19,6 @@ class AuthorizationContextMiddleware(Middleware):
             reset_mcp_authorization(token)
 
 
-# Only routes explicitly tagged "llm" become MCP tools.
-# The catch-all EXCLUDE prevents future REST endpoints from becoming tools.
 mcp = FastMCP.from_fastapi(
     app=app,
     name="RAG Gateway",
@@ -36,6 +28,14 @@ mcp = FastMCP.from_fastapi(
     ],
 )
 mcp.add_middleware(AuthorizationContextMiddleware())
+
+# Serve the REST gateway and its MCP projection from the same HTTP service.
+# The transport is explicitly Streamable HTTP and stateless for horizontal
+# scalability; FastMCP 4 handles protocol negotiation for clients.
+app.mount(
+    "/mcp",
+    mcp.http_app(transport="streamable-http", stateless_http=True),
+)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,8 @@
 import pytest
 import httpx2
+import jwt
 from fastmcp import Client
+from fastmcp.client.auth import BearerAuth
 from fastmcp.client.transports import StreamableHttpTransport
 
 from rag_gateway import api
@@ -59,20 +61,24 @@ def test_llm_routes_are_explicit_and_reviewable():
 
 
 @pytest.mark.anyio
-async def test_generated_mcp_http_tool_invokes_authenticated_fastapi_path(
+async def test_generated_mcp_http_tool_accepts_bearer_auth_and_authenticates_fastapi(
     monkeypatch,
 ):
-    observed = {}
+    secret = "test-secret-key-with-at-least-32-bytes!!"
+    token = jwt.encode(
+        {"sub": "token-user", "tenant_id": "token-tenant"},
+        secret,
+        algorithm="HS256",
+    )
+    monkeypatch.setenv("RAG_JWT_SECRET", secret)
+    monkeypatch.delenv("RAG_JWKS_URL", raising=False)
 
-    def fake_authenticate(request):
-        observed["authenticate_called"] = True
-        return "token-tenant", "token-user"
+    observed = {}
 
     async def fake_search(query, limit, tenant, user):
         observed["search"] = (query, limit, tenant, user)
         return [{"text": "ok"}]
 
-    monkeypatch.setattr(api, "authenticate", fake_authenticate)
     monkeypatch.setattr(api.service, "search", fake_search)
 
     mcp_app = mcp.http_app(transport="streamable-http", stateless_http=True)
@@ -86,6 +92,7 @@ async def test_generated_mcp_http_tool_invokes_authenticated_fastapi_path(
 
     transport = StreamableHttpTransport(
         "http://testserver/mcp",
+        auth=BearerAuth(token),
         httpx_client_factory=httpx_client_factory,
     )
 
@@ -98,6 +105,5 @@ async def test_generated_mcp_http_tool_invokes_authenticated_fastapi_path(
 
     assert result.data == [{"text": "ok"}]
     assert observed == {
-        "authenticate_called": True,
         "search": ("hello", 1, "token-tenant", "token-user"),
     }

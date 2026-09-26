@@ -1,6 +1,5 @@
 from fastapi import HTTPException
 from fastmcp import Client
-from fastmcp.client.auth import BearerAuth
 from fastmcp.client.transports import StreamableHttpTransport
 import httpx as httpx2
 import jwt
@@ -96,12 +95,12 @@ async def test_generated_mcp_http_tool_accepts_bearer_auth_and_uses_single_fasta
         return httpx2.AsyncClient(
             transport=httpx2.ASGITransport(app=mcp_app),
             base_url="http://testserver",
+            headers={"Authorization": f"Bearer {token}"},
             **kwargs,
         )
 
     transport = StreamableHttpTransport(
         "http://testserver/mcp",
-        auth=BearerAuth(token),
         httpx_client_factory=httpx_client_factory,
     )
 
@@ -148,7 +147,6 @@ async def test_mcp_missing_or_wrong_auth_is_rejected_before_downstream(
 
     transport = StreamableHttpTransport(
         "http://testserver/mcp",
-        auth=BearerAuth("unused") if authorization == "Bearer unused" else None,
         httpx_client_factory=httpx_client_factory,
     )
 
@@ -224,6 +222,10 @@ def test_mcp_entrypoint_is_http_and_generated_tools_use_streamable_http():
 def test_mounted_mcp_path_exists():
     routes = {route.path for route in app.routes}
     assert any(path.startswith("/mcp") for path in routes)
+
+
+def test_mounted_mcp_path_exists():
+    assert any(route.path.startswith("/mcp") for route in app.routes)
 
 
 def test_auth_unit_error_contract(monkeypatch):
